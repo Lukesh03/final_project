@@ -1,0 +1,421 @@
+import React, { useState } from "react";
+import Avatar from "@mui/material/Avatar";
+import Button from "@mui/material/Button";
+import CssBaseline from "@mui/material/CssBaseline";
+import TextField from "@mui/material/TextField";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import Checkbox from "@mui/material/Checkbox";
+import Link from "@mui/material/Link";
+import Grid from "@mui/material/Grid";
+import Box from "@mui/material/Box";
+import Typography from "@mui/material/Typography";
+import Container from "@mui/material/Container";
+import { createTheme, ThemeProvider } from "@mui/material/styles";
+import axios from "axios";
+import Alert from '@mui/material/Alert';
+import { useNavigate } from "react-router-dom";
+
+import {
+  MenuItem, InputLabel, FormControl, Select, Dialog,
+  DialogTitle,
+  DialogActions,
+  DialogContent
+} from "@mui/material";
+
+const BASE_URL = "http://localhost:8000/api/v1";
+
+const theme = createTheme();
+
+export default function Register({ handleHaveAccount }) {
+
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState(false)
+  const [success, setSuccess] = useState(false)
+  const [firstNameError, setFirstNameError] = useState(false)
+  const [lastNameError, setLastNameError] = useState(false)
+  const [emailError, setEmailError] = useState(false)
+  const [addressError, setaddressError] = useState(false)
+  const [contactNumberError, setContactNumberError] = useState(false)
+  const [role, setRole] = useState();
+  const [email, setEmail] = useState();
+  /**--------------------------------OTP------------------------------------------------------------------------- */
+
+  const [openOtp, setOpenOtp] = useState(false);
+  const [otp, setOtp] = useState("");
+  const [otpError, setOtpError] = useState("");
+  const [otpVerified, setOtpVerified] = useState(false);
+  const [invalidOtp, setInvalidOtp] = useState(false);
+  /**--------------------------------OTP------------------------------------------------------------------------- */
+
+  const [passwordError, setPasswordError] = useState(false)
+
+
+  const validateEmail = (email) => {
+    return String(email)
+      .toLowerCase()
+      .match(
+        /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/
+      );
+  };
+  const validatePassword = (password) => {
+    const minLength = 8;
+    const hasUppercase = /[A-Z]/.test(password);
+    const hasLowercase = /[a-z]/.test(password);
+    const hasNumber = /[0-9]/.test(password);
+    const hasSpecialCharacter = /[!@#$%^&*()_+{}\[\]:;<>,.?~\\/\-=|]/.test(password);
+
+    const isValid =
+      password.length >= minLength &&
+      hasUppercase &&
+      hasLowercase &&
+      hasNumber &&
+      hasSpecialCharacter;
+
+    return isValid;
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+
+    let er = false;
+
+    const data = {
+      email: formData.get("email"),
+      contactNumber: formData.get("contactNumber"),
+      address: formData.get("address"),
+      password: formData.get("password"),
+      name: formData.get("firstName") + " " + formData.get("lastName"),
+      role: role
+    }
+
+    const { email, contactNumber, password } = data
+
+    if (email === "" || !validateEmail(email)) {
+
+      er = true;
+      setEmailError(true)
+    } else {
+      setEmailError(false)
+    }
+    if (formData.get("firstName") === "") {
+      er = true;
+
+      setFirstNameError(true)
+    } else {
+      setFirstNameError(false)
+    }
+
+    if (formData.get("lastName") === "") {
+      er = true;
+
+      setLastNameError(true)
+    } else {
+      setLastNameError(false)
+    }
+
+    if (formData.get("address") === "") {
+      er = true;
+
+      setaddressError(true)
+    } else {
+      setaddressError(false)
+    }
+
+    if (contactNumber === "" || contactNumber.length != 10) {
+      er = true;
+
+      setContactNumberError(true)
+    } else {
+      setContactNumberError(false)
+    }
+
+    const regex = /^[7-9]\d{9}$/;//this regular expression ensures that the input string is exactly 10 characters long and starts with a digit between 7 and 9.
+    /**
+   ^: Start of the string.
+   [7-9]: Matches any digit between 7 and 9.
+   \d{9}: Matches exactly 9 digits (any digit from 0 to 9).
+   $: End of the string. */
+    if (!regex.test(contactNumber)) {
+      setContactNumberError(true)
+    } else {
+      setContactNumberError(false)
+    }
+
+
+    if (password === "") {
+      er = true;
+
+      setPasswordError(true)
+    } else {
+      setPasswordError(false)
+    }
+    if (password === "" || !validatePassword(password)) {
+      er = true;
+
+      setPasswordError(true)
+    } else {
+      setPasswordError(false)
+    }
+    try {
+      if (er) throw "Invalid form data"
+      console.log("error", error)
+      const response = await axios({
+        method: "post",
+        url: BASE_URL + "/users/signup",
+        data: JSON.stringify(data),
+        headers: { "Content-Type": "application/json" },
+      });
+
+      if (response.data) {
+        setSuccess(true)
+        //------------------OTP---------------------------------------------
+
+        setOpenOtp(true);
+      }
+
+      setTimeout(() => setSuccess(false), 5000)
+
+    } catch (err) {
+
+      setError(true)
+      setTimeout(() => setError(false), 5000)
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    setInvalidOtp(false);// Resetting the invalid OTP flag
+    // Checking if OTP length is not 4
+    if (otp.length !== 4) {
+      setOtpError("Please provide 4 digit valid otp");
+      return;
+    }
+    try {
+      // Sending OTP verification request to the server
+      const response = await axios({
+        method: "post",
+        url: BASE_URL + "/users/verify-otp",
+        data: JSON.stringify({ otp: otp, email: email }),
+        headers: { "Content-Type": "application/json" }
+      });
+      // Checking if OTP verification was successful
+      if (response.data === "Otp verified successfully") {
+        console.log(response.data);
+        setOtpVerified(true);// Setting OTP verification status
+        setOpenOtp(false)// Closing the OTP dialog
+        setTimeout(() => handleHaveAccount(true), 3000)// Delaying the account change after OTP verification success
+      } else {
+        setInvalidOtp(true);// Setting invalid OTP flag
+        console.log(response.data);
+      }
+
+    } catch (err) {
+      console.log("error", err)
+    }
+  }
+
+  return (
+    <ThemeProvider theme={theme}>
+      <Container style={{ marginTop: 70 }} component="main" maxWidth="xs">
+        <CssBaseline />
+        <Box
+          sx={{
+            marginTop: 8,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+          }}
+        >
+
+          {otpVerified && <Alert severity="success">Otp verified successfully, kindly proceed with login</Alert>}
+          {error && <Alert severity="error">Error occured, while registeration</Alert>}
+          {success && <Alert severity="success">Registration successful, kindly proceed with login</Alert>}
+          <Typography component="h1" variant="h5">
+            Register
+          </Typography>
+          <Box
+            component="form"
+            noValidate
+            onSubmit={handleSubmit}
+            sx={{ mt: 3 }}
+          >
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}>
+                {/**-----------------------------firstName--------------------------------- */}
+                <TextField
+                  error={firstNameError}
+                  helperText={firstNameError ? "Enter first name" : ""}
+                  onChange={(e) => setFirstNameError(false)}
+                  name="firstName"
+                  required
+                  fullWidth
+                  id="firstName"
+                  label="First Name"
+                  autoFocus
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                {/**-----------------------------lastName--------------------------------- */}
+
+                <TextField
+                  error={lastNameError}
+                  helperText={lastNameError ? "Enter last name" : ""}
+                  onChange={(e) => setLastNameError(false)}
+                  required
+                  fullWidth
+                  id="lastName"
+                  label="Last Name"
+                  name="lastName"
+                  autoComplete="family-name"
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                {/**-----------------------------Email Address--------------------------------- */}
+
+                <TextField
+                  error={emailError}
+                  helperText={emailError ? "Enter valid email" : ""}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    setEmailError(false)
+                  }}
+                  required
+                  fullWidth
+                  id="email"
+                  label="Email Address"
+                  name="email"
+                  autoComplete="email"
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                {/**-----------------------------contactNumber--------------------------------- */}
+
+                <TextField
+                  error={contactNumberError}
+                  helperText={contactNumberError ? "Enter valid contact number" : ""}
+                  onChange={(e) => setContactNumberError(false)}
+                  required
+                  fullWidth
+                  id="contactNumber"
+                  label="Contact Number"
+                  name="contactNumber"
+                  autoComplete="contactNumber"
+                  type="number"
+                />
+              </Grid>
+              <Grid item xs={12} sm={12}>
+                {/**-----------------------------address--------------------------------- */}
+
+                <TextField
+                  error={addressError}
+                  helperText={addressError ? "Enter valid address" : ""}
+                  onChange={(e) => setaddressError(false)}
+                  required
+                  fullWidth
+                  id="address"
+                  label="Address"
+                  name="address"
+                  autoComplete="address"
+                  type="text"
+                />
+              </Grid>
+              {/**-----------------------------Select Role--------------------------------- */}
+
+              <Grid item xs={12} sm={12}>
+                <FormControl sx={{ minWidth: "100%" }}>
+                  <InputLabel id="demo-simple-select-helper-label">
+                    Select Role
+                  </InputLabel>
+                  <Select
+                    labelId="demo-simple-select-helper-label"
+                    id="demo-simple-select-helper"
+                    value={role}
+                    label="Select Role"
+                    onChange={(e) => {
+                      setRole(e.target.value)
+                    }}
+                  >
+                    <MenuItem value={"SECRETARY"}>Secretary</MenuItem>
+                    <MenuItem value={"USER"}>User</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+              {/**----------------------------------password------------------------------------------ */}
+
+              <Grid item xs={12}>
+                <TextField
+                  error={passwordError}
+                  helperText={passwordError ? "Enter valid password" : ""}
+                  onChange={(e) => setPasswordError(false)}
+                  required
+                  fullWidth
+                  name="password"
+                  label="Password"
+                  type={showPassword ? "text" : "password"}
+                  id="password"
+                  autoComplete="new-password"
+                />
+              </Grid>
+              {/**----------------------------------showpassword------------------------------------------ */}
+
+              <Grid item xs={12}>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      onChange={() => setShowPassword(!showPassword)}
+                      value={showPassword}
+                      color="primary"
+                    />
+                  }
+                  label="Show Password"
+                />
+              </Grid>
+            </Grid>
+            <Button
+              type="submit"
+              fullWidth
+              variant="contained"
+              sx={{ mt: 3, mb: 2 }}
+            >
+              Register
+            </Button>
+            <Grid container justifyContent="flex-end">
+              <Grid item>
+                <Button onClick={() => handleHaveAccount(true)}>
+                  <Link href="#" variant="body2">
+                    Already have an account? Sign in
+                  </Link>
+                </Button>
+              </Grid>
+            </Grid>
+          </Box>
+        </Box>
+        <Dialog open={openOtp} onClose={() => setOpenOtp(false)}>
+          <DialogTitle>Verify Otp</DialogTitle>
+          <DialogContent>
+            {invalidOtp && <Alert severity="error">Invalid otp, try again</Alert>}
+            <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", padding: 3 }}>
+              <TextField
+                label="otp"
+                value={otp}
+                onChange={(e) => setOtp(e.target.value)}
+                error={Boolean(otpError)}
+                helperText={otpError}
+              />
+            </Box>
+
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => {
+              setOpenOtp(false);
+
+            }}>Cancel</Button>
+            <Button onClick={() => {
+              handleVerifyOtp();
+            }}>Verify</Button>
+          </DialogActions>
+        </Dialog>
+      </Container>
+    </ThemeProvider>
+  );
+}
